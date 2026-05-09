@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CardScan">
+<meta name="theme-color" content="#0a0a0f">
+<title>CardScan — Business Card Scanner</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ── CONFIG NOTICE ── */
+/* Set your keys in the CONFIG section in the <script> below */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1c1c27;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #f0efe8;
+  --muted: rgba(240,239,232,0.45);
+  --accent: #c8b8ff;
+  --accent-dim: rgba(200,184,255,0.12);
+  --green: #7de4b0;
+  --green-dim: rgba(125,228,176,0.12);
+  --red: #ff7b7b;
+  --red-dim: rgba(255,123,123,0.12);
+  --serif: 'DM Serif Display', Georgia, serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --r: 16px;
+  --r-sm: 10px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* ── LAYOUT ── */
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 0 0 env(safe-area-inset-bottom, 20px);
+}
+
+/* ── HEADER ── */
+.header {
+  padding: 52px 24px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.logo {
+  font-family: var(--serif);
+  font-size: 26px;
+  letter-spacing: -0.5px;
+}
+.logo span { color: var(--accent); }
+.header-sub { font-size: 11px; color: var(--muted); font-weight: 300; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.settings-btn {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  color: var(--muted);
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.settings-btn:hover { color: var(--text); border-color: var(--accent); }
+
+/* ── SCREENS ── */
+.screen { display: none; flex-direction: column; flex: 1; padding: 0 20px 24px; animation: fadeUp 0.3s ease; }
+.screen.active { display: flex; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── CAPTURE SCREEN ── */
+.capture-area {
+  flex: 1;
+  border: 1.5px dashed var(--border2);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 280px;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+}
+.capture-area:hover { border-color: var(--accent); background: var(--accent-dim); }
+.capture-area:active { transform: scale(0.99); }
+
+#preview-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 18px;
+  display: none;
+  position: absolute; inset: 0;
+}
+.capture-placeholder { text-align: center; z-index: 1; }
+.capture-icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  border: 1px solid rgba(200,184,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+  font-size: 28px;
+}
+.capture-label { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+.capture-sub { font-size: 12px; color: var(--muted); }
+
+.corner { position: absolute; width: 20px; height: 20px; }
+.corner.tl { top: 12px; left: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); border-radius: 4px 0 0 0; }
+.corner.tr { top: 12px; right: 12px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); border-radius: 0 4px 0 0; }
+.corner.bl { bottom: 12px; left: 12px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); border-radius: 0 0 0 4px; }
+.corner.br { bottom: 12px; right: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); border-radius: 0 0 4px 0; }
+
+.file-input { display: none; }
+
+.btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--r);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary {
+  background: var(--accent);
+  color: #0a0a0f;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--muted);
+  border: 0.5px solid var(--border2);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); }
+
+.btn-row { display: flex; gap: 10px; margin-top: 12px; }
+.btn-row .btn { flex: 1; }
+
+/* ── LOADING ── */
+#screen-loading { align-items: center; justify-content: center; gap: 20px; }
+.spinner {
+  width: 48px; height: 48px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-label { font-size: 14px; color: var(--muted); text-align: center; }
+.loading-steps { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 240px; }
+.loading-step { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.loading-step.done { color: var(--green); }
+.loading-step.done .step-dot { background: var(--green); }
+.loading-step.active { color: var(--text); }
+.loading-step.active .step-dot { background: var(--accent); animation: pulse 1s infinite; }
+.step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+/* ── RESULT SCREEN ── */
+.result-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 14px;
+}
+.result-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--accent-dim);
+  border: 1px solid rgba(200,184,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif);
+  font-size: 20px;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.result-name { font-family: var(--serif); font-size: 22px; margin-bottom: 2px; }
+.result-role { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+.result-fields { display: flex; flex-direction: column; gap: 0; }
+.result-field {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+}
+.result-field:last-child { border-bottom: none; }
+.field-icon { font-size: 15px; color: var(--muted); width: 18px; text-align: center; flex-shrink: 0; }
+.field-label { color: var(--muted); width: 68px; flex-shrink: 0; }
+.field-value { color: var(--text); flex: 1; }
+.field-value input {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.field-value input:focus { background: var(--surface2); }
+
+.notes-area {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.notes-area label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 8px; }
+.notes-area textarea {
+  width: 100%; background: none; border: none; color: var(--text);
+  font-family: var(--sans); font-size: 13px; resize: none;
+  outline: none; line-height: 1.6; min-height: 60px;
+}
+
+.email-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+.toggle-info { font-size: 13px; }
+.toggle-info span { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+.toggle-switch {
+  width: 42px; height: 24px;
+  background: var(--border2);
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle-switch.on { background: var(--accent); }
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 3px; left: 3px;
+  transition: transform 0.2s;
+}
+.toggle-switch.on::after { transform: translateX(18px); }
+
+/* ── SUCCESS SCREEN ── */
+#screen-success { align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.success-icon {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--green-dim);
+  border: 1px solid rgba(125,228,176,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+}
+.success-title { font-family: var(--serif); font-size: 24px; }
+.success-sub { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 280px; }
+.success-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.chip-green { background: var(--green-dim); color: var(--green); border: 0.5px solid rgba(125,228,176,0.2); }
+.chip-accent { background: var(--accent-dim); color: var(--accent); border: 0.5px solid rgba(200,184,255,0.2); }
+
+/* ── SETTINGS MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: none; align-items: flex-end; justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 24px 24px 0 0;
+  padding: 24px 20px 32px;
+  width: 100%; max-width: 430px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 0 auto 20px; }
+.modal-title { font-family: var(--serif); font-size: 20px; margin-bottom: 20px; }
+.field-group { margin-bottom: 14px; }
+.field-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: 6px; }
+.field-group input {
+  width: 100%;
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field-group input:focus { border-color: var(--accent); }
+.field-group input::placeholder { color: var(--muted); }
+.modal-note { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
+.modal-note a { color: var(--accent); text-decoration: none; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface2);
+  border: 0.5px solid var(--border2);
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 200;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.error { border-color: var(--red); color: var(--red); }
+.toast.success { border-color: var(--green); color: var(--green); }
+
+/* ── HISTORY ── */
+.history-section { margin-top: 24px; }
+.history-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.history-label button { background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; font-family: var(--sans); }
+.history-item {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+.history-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent-dim);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--accent); flex-shrink: 0;
+}
+.history-info { flex: 1; min-width: 0; }
+.history-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-meta { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-date { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div>
+      <div class="logo">Card<span>Scan</span></div>
+      <div class="header-sub">Business card scanner</div>
+    </div>
+    <div class="settings-btn" onclick="openSettings()" title="Settings">⚙</div>
+  </div>
+
+  <!-- ── CAPTURE SCREEN ── -->
+  <div class="screen active" id="screen-capture">
+    <div class="capture-area" onclick="triggerCapture()" id="capture-area">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img id="preview-img" alt="Card preview">
+      <div class="capture-placeholder" id="capture-placeholder">
+        <div class="capture-icon">📇</div>
+        <div class="capture-label">Tap to scan a card</div>
+        <div class="capture-sub">Camera or photo library</div>
+      </div>
+    </div>
+    <input class="file-input" type="file" id="file-input" accept="image/*" capture="environment">
+
+    <div id="capture-btns">
+      <button class="btn btn-primary" id="scan-btn" onclick="startScan()" disabled>
+        ✦ Scan & Extract
+      </button>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="triggerCapture()">📷 Camera</button>
+        <button class="btn btn-ghost" onclick="triggerGallery()">🖼 Gallery</button>
+      </div>
+    </div>
+
+    <div class="history-section" id="history-section">
+      <div class="history-label">
+        Recent contacts
+        <button onclick="clearHistory()">Clear all</button>
+      </div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- ── LOADING SCREEN ── -->
+  <div class="screen" id="screen-loading">
+    <div class="spinner"></div>
+    <div class="loading-label">Reading your card…</div>
+    <div class="loading-steps">
+      <div class="loading-step active" id="step1"><div class="step-dot"></div>Reading card with Claude Vision</div>
+      <div class="loading-step" id="step2"><div class="step-dot"></div>Extracting contact details</div>
+      <div class="loading-step" id="step3"><div class="step-dot"></div>Saving to Google Sheets</div>
+      <div class="loading-step" id="step4"><div class="step-dot"></div>Sending intro email</div>
+    </div>
+  </div>
+
+  <!-- ── RESULT SCREEN ── -->
+  <div class="screen" id="screen-result">
+    <div style="font-size:12px; color:var(--muted); margin-bottom:12px; text-align:center;">
+      ✎ Tap any field to edit before confirming
+    </div>
+    <div class="result-card">
+      <div class="result-avatar" id="res-avatar">?</div>
+      <div class="result-name" id="res-name">—</div>
+      <div class="result-role" id="res-role">—</div>
+      <div class="result-fields">
+        <div class="result-field">
+          <span class="field-icon">✉</span>
+          <span class="field-label">Email</span>
+          <span class="field-value"><input id="f-email" type="email" placeholder="—"></span>
+        </div>
+        <div class="result-field">
+          <span class="field-icon">📞</span>
+          <span class="field-label">Phone</span>
+          <span class="field-value"><input id="f-phone" type="tel" placeholder="—"></span>
+        </div>
+        <div class="result-field">
+          <span class="field-icon">💼</span>
+          <span class="field-label">Company</span>
+          <span class="field-value"><input id="f-company" placeholder="—"></span>
+        </div>
+        <div class="result-field">
+          <span class="field-icon">🔗</span>
+          <span class="field-label">LinkedIn</span>
+          <span class="field-value"><input id="f-linkedin" placeholder="—"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-area">
+      <label>Where we met / notes</label>
+      <textarea id="f-notes" placeholder="e.g. TechSparks Delhi, May 2026 — discussed AI tools…" rows="3"></textarea>
+    </div>
+
+    <div class="email-toggle" onclick="toggleEmail()">
+      <div class="toggle-info">
+        Send intro email automatically
+        <span id="email-toggle-sub">Will email on confirm</span>
+      </div>
+      <div class="toggle-switch on" id="email-toggle-switch"></div>
+    </div>
+
+    <button class="btn btn-primary" onclick="confirmSave()">✓ Confirm & Save</button>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goBack()">← Retake</button>
+      <button class="btn btn-ghost" onclick="saveSheetOnly()">Sheet only</button>
+    </div>
+  </div>
+
+  <!-- ── SUCCESS SCREEN ── -->
+  <div class="screen" id="screen-success">
+    <div class="success-icon">✓</div>
+    <div class="success-title" id="success-name">Contact saved!</div>
+    <div class="success-sub" id="success-sub">Added to your Google Sheet.</div>
+    <div class="success-chips" id="success-chips">
+      <div class="chip chip-green">✓ Google Sheets</div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:24px;" onclick="scanAnother()">Scan another card</button>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="goBack()">← Back</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settings-modal" onclick="closeSettingsOutside(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Settings</div>
+
+    <div class="field-group">
+      <label>Anthropic API Key</label>
+      <input type="password" id="s-apikey" placeholder="sk-ant-api03-…">
+    </div>
+    <div class="field-group">
+      <label>Google Apps Script URL</label>
+      <input type="url" id="s-gsurl" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <div class="field-group">
+      <label>Your Name</label>
+      <input type="text" id="s-name" placeholder="Rahul Sharma">
+    </div>
+    <div class="field-group">
+      <label>Your Email</label>
+      <input type="email" id="s-email" placeholder="rahul@company.com">
+    </div>
+    <p class="modal-note">
+      Get a free Anthropic API key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
+      Your Apps Script URL comes from Deploy → Web App in Google Apps Script.
+      All settings are saved locally on your device.
+    </p>
+    <button class="btn btn-primary" style="margin-top:16px;" onclick="saveSettings()">Save settings</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CONFIG — also editable via the ⚙ settings UI
+// ═══════════════════════════════════════════
+const CONFIG = {
+  ANTHROPIC_API_KEY: localStorage.getItem('apikey') || '',
+  APPS_SCRIPT_URL:   localStorage.getItem('gsurl')  || '',
+  YOUR_NAME:         localStorage.getItem('uname')  || '',
+  YOUR_EMAIL:        localStorage.getItem('uemail') || '',
+};
+
+// ── STATE ──
+let currentImage = null;  // base64 data URL
+let extractedData = {};
+let sendEmail = true;
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
+  renderHistory();
+  if (!CONFIG.ANTHROPIC_API_KEY || !CONFIG.APPS_SCRIPT_URL) {
+    setTimeout(openSettings, 600);
+  }
+});
+
+// ── SCREENS ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── CAPTURE ──
+function triggerCapture() {
+  const inp = document.getElementById('file-input');
+  inp.setAttribute('capture', 'environment');
+  inp.click();
+}
+function triggerGallery() {
+  const inp = document.getElementById('file-input');
+  inp.removeAttribute('capture');
+  inp.click();
+}
+
+document.getElementById('file-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    currentImage = ev.target.result;
+    const img = document.getElementById('preview-img');
+    img.src = currentImage;
+    img.style.display = 'block';
+    document.getElementById('capture-placeholder').style.display = 'none';
+    document.getElementById('scan-btn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── SCAN ──
+async function startScan() {
+  if (!currentImage) return toast('Please capture a card first.', 'error');
+  if (!CONFIG.ANTHROPIC_API_KEY) return toast('Add your Anthropic API key in Settings ⚙', 'error');
+  if (!CONFIG.APPS_SCRIPT_URL)   return toast('Add your Google Apps Script URL in Settings ⚙', 'error');
+
+  showScreen('screen-loading');
+  setStep(1);
+
+  try {
+    // Extract base64 data (strip header)
+    const base64 = currentImage.split(',')[1];
+    const mediaType = currentImage.split(';')[0].split(':')[1];
+
+    // Step 1 → Claude Vision
+    const extracted = await callClaudeVision(base64, mediaType);
+    setStep(2);
+    await delay(400);
+
+    extractedData = extracted;
+    setStep(3);
+
+    // Populate result screen
+    populateResult(extractedData);
+    showScreen('screen-result');
+
+  } catch (err) {
+    showScreen('screen-capture');
+    toast('Error: ' + err.message, 'error');
+  }
+}
+
+async function callClaudeVision(base64, mediaType) {
+  setStep(1);
+  const prompt = `You are a business card OCR system. Extract all contact information from this business card image and return ONLY a valid JSON object with these exact keys (use empty string if not found):
+{
+  "name": "",
+  "company": "",
+  "title": "",
+  "email": "",
+  "phone": "",
+  "linkedin": "",
+  "website": ""
+}
+No explanation, no markdown, no backticks. Just the raw JSON object.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CONFIG.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-client-side-usage': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Claude API error');
+  }
+
+  const data = await res.json();
+  const text = data.content[0].text.trim();
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+// ── RESULT ──
+function populateResult(d) {
+  const name = d.name || 'Unknown';
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('res-avatar').textContent = initials || '?';
+  document.getElementById('res-name').textContent = name;
+  document.getElementById('res-role').textContent = [d.title, d.company].filter(Boolean).join(' · ') || '—';
+  document.getElementById('f-email').value   = d.email || '';
+  document.getElementById('f-phone').value   = d.phone || '';
+  document.getElementById('f-company').value = d.company || '';
+  document.getElementById('f-linkedin').value= d.linkedin || '';
+  document.getElementById('f-notes').value   = '';
+  sendEmail = true;
+  updateToggle();
+}
+
+function toggleEmail() {
+  sendEmail = !sendEmail;
+  updateToggle();
+}
+function updateToggle() {
+  const sw = document.getElementById('email-toggle-switch');
+  const sub = document.getElementById('email-toggle-sub');
+  sw.classList.toggle('on', sendEmail);
+  sub.textContent = sendEmail ? 'Will email on confirm' : 'Sheet only — no email';
+}
+
+// ── SAVE ──
+async function confirmSave() { await save(sendEmail); }
+async function saveSheetOnly() { await save(false); }
+
+async function save(withEmail) {
+  const contact = {
+    name:     document.getElementById('res-name').textContent,
+    company:  document.getElementById('f-company').value,
+    title:    extractedData.title || '',
+    email:    document.getElementById('f-email').value,
+    phone:    document.getElementById('f-phone').value,
+    linkedin: document.getElementById('f-linkedin').value,
+    notes:    document.getElementById('f-notes').value,
+    sendEmail: withEmail,
+  };
+
+  // Update loading steps
+  showScreen('screen-loading');
+  setStep(3, true);
+
+  try {
+    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(contact)
+    });
+
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error || 'Failed to save');
+
+    setStep(4, true);
+    await delay(300);
+
+    // Save to local history
+    addToHistory(contact);
+
+    // Show success
+    document.getElementById('success-name').textContent = contact.name || 'Contact saved!';
+    document.getElementById('success-sub').textContent =
+      result.emailSent
+        ? `Added to Sheets & intro email sent to ${contact.email}`
+        : `Added to your Google Sheet.`;
+    const chips = document.getElementById('success-chips');
+    chips.innerHTML = '<div class="chip chip-green">✓ Google Sheets</div>';
+    if (result.emailSent) chips.innerHTML += '<div class="chip chip-accent">✉ Email sent</div>';
+
+    showScreen('screen-success');
+
+  } catch (err) {
+    showScreen('screen-result');
+    toast('Save failed: ' + err.message, 'error');
+  }
+}
+
+// ── NAVIGATION ──
+function goBack() {
+  currentImage = null;
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('capture-placeholder').style.display = 'block';
+  document.getElementById('scan-btn').disabled = true;
+  document.getElementById('file-input').value = '';
+  renderHistory();
+  showScreen('screen-capture');
+}
+function scanAnother() { goBack(); }
+
+// ── LOADING STEPS ──
+function setStep(n, keep) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  }
+}
+
+// ── HISTORY ──
+function addToHistory(contact) {
+  const hist = JSON.parse(localStorage.getItem('history') || '[]');
+  hist.unshift({ ...contact, date: new Date().toLocaleDateString('en-IN') });
+  localStorage.setItem('history', JSON.stringify(hist.slice(0, 20)));
+}
+function renderHistory() {
+  const hist = JSON.parse(localStorage.getItem('history') || '[]');
+  const list = document.getElementById('history-list');
+  const section = document.getElementById('history-section');
+  if (!hist.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = hist.slice(0, 5).map(c => {
+    const initials = (c.name || '?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `<div class="history-item">
+      <div class="history-avatar">${initials}</div>
+      <div class="history-info">
+        <div class="history-name">${c.name || '—'}</div>
+        <div class="history-meta">${[c.title, c.company].filter(Boolean).join(' · ') || c.email || '—'}</div>
+      </div>
+      <div class="history-date">${c.date || ''}</div>
+    </div>`;
+  }).join('');
+}
+function clearHistory() {
+  localStorage.removeItem('history');
+  renderHistory();
+  toast('History cleared');
+}
+
+// ── SETTINGS ──
+function openSettings() {
+  document.getElementById('s-apikey').value = localStorage.getItem('apikey') || '';
+  document.getElementById('s-gsurl').value  = localStorage.getItem('gsurl')  || '';
+  document.getElementById('s-name').value   = localStorage.getItem('uname')  || '';
+  document.getElementById('s-email').value  = localStorage.getItem('uemail') || '';
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function closeSettingsOutside(e) { if (e.target.id === 'settings-modal') closeSettings(); }
+function saveSettings() {
+  CONFIG.ANTHROPIC_API_KEY = document.getElementById('s-apikey').value.trim();
+  CONFIG.APPS_SCRIPT_URL   = document.getElementById('s-gsurl').value.trim();
+  CONFIG.YOUR_NAME         = document.getElementById('s-name').value.trim();
+  CONFIG.YOUR_EMAIL        = document.getElementById('s-email').value.trim();
+  localStorage.setItem('apikey', CONFIG.ANTHROPIC_API_KEY);
+  localStorage.setItem('gsurl',  CONFIG.APPS_SCRIPT_URL);
+  localStorage.setItem('uname',  CONFIG.YOUR_NAME);
+  localStorage.setItem('uemail', CONFIG.YOUR_EMAIL);
+  closeSettings();
+  toast('Settings saved ✓', 'success');
+}
+function loadSettings() {
+  CONFIG.ANTHROPIC_API_KEY = localStorage.getItem('apikey') || '';
+  CONFIG.APPS_SCRIPT_URL   = localStorage.getItem('gsurl')  || '';
+  CONFIG.YOUR_NAME         = localStorage.getItem('uname')  || '';
+  CONFIG.YOUR_EMAIL        = localStorage.getItem('uemail') || '';
+}
+
+// ── TOAST ──
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── UTILS ──
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+
+</body>
+</html>
